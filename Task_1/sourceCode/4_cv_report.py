@@ -11,9 +11,10 @@ LINE_REGEX = re.compile(
     r"(?P<event>.+)"
 )
 
+# severity order
 SEVERITY_ORDER = {"INFO": 1, "WARNING": 2, "ERROR": 3}
 
-def map_risk(level: str) -> str:
+def map_risk(level: str) -> str: # return str
     if level == "ERROR":
         return "High"
     if level == "WARNING":
