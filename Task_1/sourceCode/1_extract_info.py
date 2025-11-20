@@ -1,8 +1,17 @@
 import os
 import sys
+import re 
 from modules.mod import get_log_files
 
 parent_dir_path, files = get_log_files()
+
+# logs formate
+LINE_REGEX = re.compile(
+    r"(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) "
+    r"(?P<device>\S+) "
+    r"(?P<level>\S+) "
+    r"(?P<event>.+)"
+)
 
 # grep info based on required_info func
 def print_info(files, parent_dir_path, required_info):
@@ -13,7 +22,10 @@ def print_info(files, parent_dir_path, required_info):
         with open(filepath, "r") as f:
             for line in f:
                 # skip empty line
-                if not line.strip():
+                # if not line.strip():
+                #     continue
+                line_formate = LINE_REGEX.match(line.strip())
+                if not line_formate: 
                     continue
 
                 parts = line.strip().split()

@@ -1,5 +1,15 @@
 import os
+import re
 from modules.mod import get_log_files
+
+# logs formate
+LINE_REGEX = re.compile(
+    r"(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) "
+    r"(?P<device>\S+) "
+    r"(?P<level>\S+) "
+    r"(?P<event>.+)"
+)
+
 
 parent_dir_path, files = get_log_files()
 
@@ -11,8 +21,8 @@ def detect_cpu_flaps(files):
 
         with open(filepath, "r") as file:
             for line in file:
-                line = line.strip()
-                if not line:
+                line_formate = LINE_REGEX.match(line.strip())
+                if not line_formate: 
                     continue
 
                 parts = line.split()
