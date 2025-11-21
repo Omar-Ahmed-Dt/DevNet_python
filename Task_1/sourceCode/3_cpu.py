@@ -2,40 +2,32 @@ import os
 import re
 from modules.mod import get_log_files
 
-# logs formate
-LINE_REGEX = re.compile(
-    r"(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) "
-    r"(?P<device>\S+) "
-    r"(?P<level>\S+) "
-    r"(?P<event>.+)"
+# CPU exceeded
+cpu_exceeded_regex = re.compile(
+    r"^\s*(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"
+    r"(?P<device>\S+)\s+INFO\s+CPU utilization exceeded\s+"
+    r"(?P<value>\d+)%\s*$",
+    re.IGNORECASE
 )
 
 
 parent_dir_path, files = get_log_files()
 
 def detect_cpu_flaps(files):
-    events = {}   # device -> list of (minutes)
+    events = {}
 
     for filename in files:
         filepath = os.path.join(parent_dir_path, filename)
 
         with open(filepath, "r") as file:
             for line in file:
-                line_formate = LINE_REGEX.match(line.strip())
-                if not line_formate: 
+                cpu_exceeded_line_formate = cpu_exceeded_regex.match(line.strip())
+                if not cpu_exceeded_line_formate: 
                     continue
 
                 parts = line.split()
 
-                # need at least date time device cpu%
-                if len(parts) < 4:
-                    continue
-
                 last = parts[-1]     # example "85%" at end
-
-                # must end with % and be numeric
-                if not last.endswith("%"):
-                    continue
 
                 cpu_str = last[:-1]   # remove %
                 if not cpu_str.isdigit():
@@ -47,8 +39,7 @@ def detect_cpu_flaps(files):
                 if cpu_value <= 80:
                     continue
 
-                # extract time
-                time_str = parts[1]   # HH:MM:SS
+                time_str = parts[1]
                 device   = parts[2]
 
                 time_parts = time_str.split(":")
@@ -61,6 +52,13 @@ def detect_cpu_flaps(files):
                     events[device] = []
 
                 events[device].append(total_minutes)
+                # print(events.items())
+                """
+                dict_items([('R2', [415])])
+                dict_items([('R2', [415]), ('R4', [433])])
+                dict_items([('R2', [415]), ('R4', [433, 562])])
+                dict_items([('R2', [415]), ('R4', [433, 562]), ('R1', [573])])
+                """
 
     # Detect CPU (>2 in 60 minutes)
     print("\n## CPU >80% more than 2 times in 1 hour: \n")
@@ -69,8 +67,8 @@ def detect_cpu_flaps(files):
         times = events[device]
         times.sort()
 
-        if len(times) < 3:
-            continue   # cannot be >2
+        if len(times) < 2:
+            continue
 
         for i in range(len(times)):
             count = 1

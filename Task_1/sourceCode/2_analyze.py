@@ -78,7 +78,7 @@ def detect_bgp_flaps(files):
                 else:
                     break
 
-            if window > 3:
+            if window >= 3:
                 print(f"{device}: {window} BGP Down flaps within 10 minutes")
                 break
 
