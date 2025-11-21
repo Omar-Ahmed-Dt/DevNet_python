@@ -1,7 +1,15 @@
 import os
+import re
 from modules.mod import get_log_files
 
 parent_dir_path, files = get_log_files()
+
+# Regex to match ONLY BGP down lines
+bgp_down_regex = re.compile(
+    r"(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"
+    r"(?P<device>\S+)\s+INFO\s+BGP neighbor\s+"
+    r"(?P<neighbor>\d+\.\d+\.\d+\.\d+)\s+went down"
+)
 
 def to_minutes(time_str):
     # "15:22:33" => 15*60 + 22 = 922 minutes
@@ -20,18 +28,29 @@ def detect_bgp_flaps(files):
         with open(filepath, "r") as file:
             for line in file:
                 line = line.strip()
-                # check lines that didn't cotain "BGP"
-                if "BGP" not in line or "down" not in line:
+
+                # match only BGP down lines
+                bgp_line_formate = bgp_down_regex.match(line)
+                if not bgp_line_formate:
                     continue
 
-                parts = line.split()
-                date = parts[0]
-                time = parts[1]
-                device = parts[2]
+                # print("[BGP DOWN]", line.strip())
+                parts   = line.split()
+                date    = parts[0]
+                time    = parts[1]
+                device  = parts[2]
 
                 mins = to_minutes(time)
 
                 events.setdefault(device, []).append((date, mins))
+                # returns pairs (device, list_of_tuples [(date,mins)] ): 
+                # print(events.items())
+                """
+                Example: 
+                dict_items([('R4', [('2025-10-19', 412)])])
+                dict_items([('R4', [('2025-10-19', 412)]), ('R1', [('2025-10-19', 420)])])
+                dict_items([('R4', [('2025-10-19', 412)]), ('R1', [('2025-10-19', 420)]), ('R3', [('2025-10-19', 437)])])
+                """
 
     # detect Flapping (>3 in 10 minutes)
     print("\n## BGP flap dtection (>3 in 10 minutes)\n")
@@ -44,10 +63,11 @@ def detect_bgp_flaps(files):
         times = []
         for t in timestamps:
             # t looks like ("2025-10-17", 450)
-            minute_value = t[1]
+            minute_value = t[1] # t[1] = 450
             times.append(minute_value)
 
-        if len(times) < 4:
+        # skip flap times < 3
+        if len(times) < 3:
             continue
 
         for i in range(len(times)):
